@@ -1,0 +1,309 @@
+
+<head>
+<script type='text/javascript'>
+
+function $query(selector) { return document.querySelectorAll(selector) }
+
+function addDragListener(n,ondown,onmove,onup)
+{
+	var isDown = false;
+	var ldown,lmove,lup;
+	n.addEventListener('mousedown',ldown=function(e)
+	{
+		isDown = true;
+		if (ondown)
+			ondown(e);
+	},true);
+	n.addEventListener('mousemove',lmove=function(e)
+	{
+		if (isDown && onmove)
+			onmove(e);
+	},false);
+	n.addEventListener('mouseup',lup=function(e)
+	{
+		isDown = false;
+		if (onup)
+			onup(e);
+	},false);
+	
+	n.removeDragEventListeners = function()
+	{
+		n.removeEventListener('mousedown',ldown,true);
+		n.removeEventListener('mousemove',lmove,false);
+		n.removeEventListener('mouseup',lup,false);
+	};
+}
+
+function removeDragListener(n)
+{
+	n.removeDragEventListeners();
+}
+
+function updateMousePositionFields(x,y)
+{
+	var spans = $query('#mousedatabar > span:nth-of-type(1) > span');
+	spans[0].innerHTML = x;
+	spans[1].innerHTML = y;
+}
+function updateCanvasDragValues(x,y,w,h)
+{
+	var spans = $query('#mousedatabar > span:nth-of-type(2) > span');
+	spans[0].innerHTML = x;
+	spans[1].innerHTML = y;
+	spans[2].innerHTML = w;
+	spans[3].innerHTML = h;
+}
+
+function drawCanvasWithRegion(x,y,w,h)
+{
+	var img = $query('img')[0];
+	var canvas = $query('canvas')[0];
+	
+	var c = canvas.getContext('2d');
+	c.drawImage(img,0,0);
+	
+	c.lineWidth = 1;
+	c.strokeStyle = '#f00';
+	c.strokeRect(x+.5,y+.5,w,h);
+}
+
+function loadImage()
+{
+	var inputdir = $query('input[type=text]')[0];
+	var inputfile = $query('input[type=file]')[0];
+	var inputbutton = $query('input[type=button]')[0];
+	var img = $query('img')[0];
+	
+	localStorage.setItem('lastdir',inputdir.value);
+	console.log(inputfile.value);
+	
+	var sep = (inputdir.value.match(/^[A-Z]:\\/) ? '\\' : '/');
+	var filePath = 'file://'
+		+ inputdir.value.replace(new RegExp('([^\\'+sep+']|^)$'),'$1'+sep)
+		+ inputfile.value.replace(new RegExp('.*\\'+sep+'fakepath'+'\\'+sep),'');
+	
+	console.log('filePath:',filePath);
+	img.crossOrigin = 'anonymous';
+	img.src = filePath;
+}
+
+function processImage()
+{
+	var img = $query('img')[0];
+	var canvas = $query('canvas')[0];
+	
+	canvas.width = img.width;
+	canvas.height = img.height;
+	
+	// This became necessary when Firefox couldn't handle a canvas element within
+	// a parent node set to display:table-cell.
+	canvas.parentNode.style.width = canvas.width;
+	
+	updateCanvasDragValues(0,0,canvas.width-1,canvas.height-1);
+	drawCanvasWithRegion(0,0,canvas.width-1,canvas.height-1);
+}
+
+function onLoad()
+{
+	// I was originally trying cookies, but then discovered the wondrous joys of // localStorage!  The .*PersistentStore.* functions still exist, though.
+	var lastdir = localStorage.getItem('lastdir');
+	
+	var inputdir = $query('input[type=text]')[0];
+	var inputfile = $query('input[type=file]')[0];
+	var select = $query('select')[0];
+	var run = $query('input[type=button]')[0];
+	var img = $query('img')[0];
+	var canvas = $query('canvas')[0];
+	var results = $query('textarea')[0];
+	
+	// Selection upper-left and lower-right points.
+	var ul,lr;
+	
+	if (lastdir)
+		inputdir.value = lastdir;
+	
+	inputfile.addEventListener('change',function(e)
+	{
+		loadImage();
+	});
+	
+	img.addEventListener('load',function(e)
+	{
+		processImage();
+		
+		ul = {x:canvas.offsetLeft,y:canvas.offsetTop};
+		lr = {x:ul.x+canvas.width-1,y:ul.y+canvas.height-1};
+	});
+	
+	canvas.addEventListener('mousemove',function(e)
+	{
+		updateMousePositionFields(
+			e.clientX-this.offsetLeft,
+			e.clientY-this.offsetTop);
+	});
+	
+	var posA,posB;
+	addDragListener(canvas,
+		function(e)
+		{
+			posA = {x:e.clientX,y:e.clientY};
+			posB = {x:posA.x,y:posA.y};
+			
+			updateCanvasDragValues(
+				posA.x-canvas.offsetLeft,
+				posA.y-canvas.offsetTop,
+				0,0);
+		},
+		function(e)
+		{
+			var posB = {x:e.clientX,y:e.clientY};
+			
+			var minx = Math.min(posA.x,posB.x);
+			var maxx = Math.max(posA.x,posB.x);
+			var miny = Math.min(posA.y,posB.y);
+			var maxy = Math.max(posA.y,posB.y);
+			
+			ul = {x:minx,y:miny};
+			lr = {x:maxx,y:maxy};
+			
+			updateCanvasDragValues(
+				ul.x-canvas.offsetLeft,
+				ul.y-canvas.offsetTop,
+				lr.x-ul.x,
+				lr.y-ul.y);
+			
+			drawCanvasWithRegion(
+				ul.x-canvas.offsetLeft,
+				ul.y-canvas.offsetTop,
+				lr.x-ul.x,
+				lr.y-ul.y);
+		},
+		function(e){});
+	
+	run.onclick = function()
+	{
+		var c = canvas.getContext('2d');
+		c.drawImage(img,0,0);
+		
+		var data = c.getImageData(
+			ul.x-canvas.offsetLeft,
+			ul.y-canvas.offsetTop,
+			lr.x-ul.x+1,
+			lr.y-ul.y+1);
+		
+		drawCanvasWithRegion(
+			ul.x-canvas.offsetLeft,
+			ul.y-canvas.offsetTop,
+			lr.x-ul.x,
+			lr.y-ul.y);
+		
+		// Here's where the <select/> logic comes in.
+		var op = select.options[select.selectedIndex];
+		if (op.value == 'array-rgba')
+		{
+			var res = [];
+			for (var p in data.data)
+				res.push(data.data[p]);
+			results.value = JSON.stringify(res);
+		}
+		else if (op.value == 'data')
+		{
+			results.value = JSON.stringify(data.data);
+		}
+	};
+}
+
+</script>
+<style type='text/css'>
+	body {
+		font-family:Tahoma;
+		font-size:12px;
+	}
+	input {
+		font-family:inherit;
+		font-size:inherit;
+	}
+	select {
+		font-family:inherit;
+		font-size:inherit;
+	}
+	img {
+		display:none;
+		cursor:default;
+	}
+	div[class=bordered] {
+		width:0px;
+		cursor:default;
+	}
+	canvas {
+		display:block;
+	}
+	textarea {
+		width:600px;
+		margin-top:4px;
+	}
+	i {
+		color:#b00;
+	}
+	
+	#mousedatabar {
+		display:block;
+		padding-top:2px;
+		padding-bottom:2px;
+	}
+	#mousedatabar > span {
+		padding-right:30px;
+	}
+	#mousedatabar > span:last-child {
+		padding-right:0px;
+	}
+	#mousedatabar > span > span {
+		display:inline-block;
+		height:16px;
+		width:40px;
+		border-radius:2px;
+		background-color:#ddd;
+		text-align:center;
+	}
+	
+	.bordered {
+		display:block;
+		border:1px solid black;
+	}
+</style>
+</head>
+
+<body onload='onLoad()'>
+	<div>
+		<div>
+			<input type='text'/>
+			<input type='file'/>
+			<select type='select'>
+				<option value='array-rgba'>JSON: Raw Array (RGBA)</option>
+				<option value='array-01'>JSON: Raw Array (0/1)</option>
+				<option value='hex-rgba'>JSON: Hex Values (RGBA)</option>
+				<option value='hex-01'>JSON: Hex Values (0/1)</option>
+				<option value='data'>JSON: Image Data Object</option>
+			</select>
+			<input type='button' value='Run' onclick='loadImage()'/>
+		</div>
+		<div id='mousedatabar'>
+			<span>Mouse Position: <span>mx</span> <span>my</span></span>
+			<span>
+				Active Region -
+				pos: <span>x</span> <span>y</span>
+				size: <span>w</span> <span>h</span>
+			</span>
+		</div>
+	</div>
+	<img src=''/>
+	<div class='bordered'>
+		<canvas width=0 height=0></canvas>
+	</div>
+	<textarea readonly></textarea>
+	<ul>
+		<li>If running in <b>Chrome</b>, argument <i>--disable-web-security</i> must be passed to the <b>launching executable</b> for this to get around the same-origin policy settings.</li>
+		<li>If running in <b>Firefox</b>, preference <i>security.fileuri.strict_origin_policy</i> must be set to <b>false</b> under <b>about:config</b> to accomplish the same.</li>
+		<li>Also note that the loaded image resources often go un-removed until a page refresh, so if you keep at it with large files, away goes the RAM!</li>
+	</ul>
+</body>
