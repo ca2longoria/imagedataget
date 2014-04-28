@@ -138,8 +138,8 @@ function onLoad()
 	canvas.addEventListener('mousemove',function(e)
 	{
 		updateMousePositionFields(
-			e.clientX-this.offsetLeft,
-			e.clientY-this.offsetTop);
+			e.clientX-this.offsetLeft+window.pageXOffset,
+			e.clientY-this.offsetTop+window.pageYOffset);
 	});
 	
 	var posA,posB;
@@ -167,14 +167,14 @@ function onLoad()
 			lr = {x:maxx,y:maxy};
 			
 			updateCanvasDragValues(
-				ul.x-canvas.offsetLeft,
-				ul.y-canvas.offsetTop,
+				ul.x-canvas.offsetLeft+window.pageXOffset,
+				ul.y-canvas.offsetTop+window.pageYOffset,
 				lr.x-ul.x,
 				lr.y-ul.y);
 			
 			drawCanvasWithRegion(
-				ul.x-canvas.offsetLeft,
-				ul.y-canvas.offsetTop,
+				ul.x-canvas.offsetLeft+window.pageXOffset,
+				ul.y-canvas.offsetTop+window.pageYOffset,
 				lr.x-ul.x,
 				lr.y-ul.y);
 		},
@@ -186,14 +186,14 @@ function onLoad()
 		c.drawImage(img,0,0);
 		
 		var data = c.getImageData(
-			ul.x-canvas.offsetLeft,
-			ul.y-canvas.offsetTop,
+			ul.x-canvas.offsetLeft+window.pageXOffset,
+			ul.y-canvas.offsetTop+window.pageYOffset,
 			lr.x-ul.x+1,
 			lr.y-ul.y+1);
 		
 		drawCanvasWithRegion(
-			ul.x-canvas.offsetLeft,
-			ul.y-canvas.offsetTop,
+			ul.x-canvas.offsetLeft+window.pageXOffset,
+			ul.y-canvas.offsetTop+window.pageLeftOffset,
 			lr.x-ul.x,
 			lr.y-ul.y);
 		
